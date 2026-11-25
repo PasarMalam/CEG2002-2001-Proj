@@ -1,7 +1,7 @@
 /* --------------------------------------------------
 FireBeetle ESP32 UART Sensor Receiver & Firebase Uploader
 
-Author:
+Author: Wai Loon
 Version: 3.0.1
 
 Responsibilities:
@@ -29,7 +29,7 @@ Values: current in 0.1 mA, temperature in 0.1 C, RMS in 0.1 mg
 // Note: ESP32 only supports 2.4 GHz Wi-Fi networks
 #define WIFI_SSID     ""
 #define WIFI_PASSWORD ""
-#define DATABASE_URL  "https://ceg2001-2-project-group-p2-5-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define DATABASE_URL  "ceg2001-2-project-group-p2-5-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 const unsigned long FIREBASE_UPLOAD_INTERVAL_MS = 2000; // Upload at most once every 2 seconds
 
@@ -77,6 +77,9 @@ unsigned long lastFirebaseSendMs = 0;
 
 /* --------------------------------------------------
 Function: GetStatusText
+
+Author: Wai Loon
+Version: 2.0.0
 
 Responsibilities:
 - Convert MSP430 numeric vibration status into readable text
@@ -135,7 +138,7 @@ void AddConditionFields(FirebaseJson &json, const TelemetrySnapshot &data)
 /* --------------------------------------------------
 Function: PrintStatus
 
-Author:
+Author: Wai Loon
 Version: 1.1.0
 
 Responsibilities:
@@ -152,6 +155,9 @@ void PrintStatus(unsigned int status)
 
 /* --------------------------------------------------
 Function: UploadToFirebase
+
+Author: Wai Loon
+Version: 2.0.0
 
 Responsibilities:
 - Push the latest telemetry snapshot to /current and /history in Firebase RTDB
@@ -212,7 +218,7 @@ void UploadToFirebase(const TelemetrySnapshot &data)
 /* --------------------------------------------------
 Function: ProcessMessage
 
-Author:
+Author: Wai Loon
 Version: 3.0.1
 
 Responsibilities:
