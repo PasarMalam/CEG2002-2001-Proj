@@ -3,32 +3,7 @@ Preventive Maintenance Monitoring System
 Board: MSP-EXP430F5529LP
 File: main.c
 Version: 3.0.0 - Consolidated warning logic
-Author(s): [Enter actual team contributors]
-
-Summary / program flow:
-1. Initialize MSP430 UART A0 for FireBeetle ESP32 communication.
-2. Leave UART A1 disabled; send all system data over UART A0.
-3. Initialize ADC12 for MCP9700 temperature measurement.
-4. Configure shared I2C USCI_B0 for INA219 and ADXL345.
-5. Recover the I2C bus if necessary after a reset.
-6. Configure INA219 128x averaging and ADXL345 FIFO.
-7. Verify both I2C sensors can be read successfully.
-8. Calibrate 20 healthy vibration, current and temperature windows.
-9. Calculate vibration, current, temperature and impact warning limits.
-10. Use Timer_A0 to schedule monitoring every ~1 second.
-11. Read sensors and confirm individual and combined faults across 3 windows.
-12. Detect the on-board S1 button and debounce its press with Timer_A0.
-13. Recalibrate the fan when S1 is pressed and the fan is healthy.
-14. Send HELLO, CAL, BASE, DATA (including XYZ RMS), ERROR to ESP32.
-15. Enter LPM0 between scheduled tasks and wake on interrupts.
-
-Notes:
-- Fan must run normally with the bracket firmly secured at startup.
-- Warning limits indicate experimental changes, not certified faults.
-- Keep this as the ONLY source file defining main() in the CCS build.
-- S1 is on P2.1; Timer_A0 uses ACLK (assumed 32768 Hz).
-- Keep the fan securely mounted when recalibrating.
-- Document actual authorship and AI assistance in the submission.
+Author(s): Sinclair, Iaian, Arthur, Julius, Wai Loon
 -------------------------------------------------- */
 
 #include <msp430.h>
@@ -60,23 +35,23 @@ Notes:
 
 
 /* Thresholds: units are 0.1 mg unless stated otherwise. */
-#define RMS_TOL_PCT          20UL    /* at least +/-20% of baseline */
+#define RMS_TOL_PCT          20UL    /* at least +-20% of baseline */
 #define RMS_SPREAD_MULT      1UL     /* also account for window variation */
-#define RMS_TOL_FLOOR        20UL    /* at least +/-2.0 mg */
-#define IMPACT_MULT          3UL     /* 3 times max calibration peak-to-peak */
-#define IMPACT_MIN           2500UL  /* minimum possible-impact threshold: 250 mg */
+#define RMS_TOL_FLOOR        20UL    /* at least +-2.0 mg */
+#define IMPACT_MULT          3UL     /* 3 times max calibration peak to peak */
+#define IMPACT_MIN           2500UL  /* minimum possible impact threshold: 250 mg */
 
 /* Current and temperature warning settings (experimental) */
-#define CURRENT_TOL_PCT      10L    // Allow +/-10% of healthy current
+#define CURRENT_TOL_PCT      10L    // Allow +-10% of healthy current
 #define CURRENT_TOL_MIN      100L   // Minimum tolerance of 10 mA
 #define TEMP_RISE_LIMIT      50L    // Warn at 5.0 C above baseline
 #define CURRENT_OBSTRUCTION  3000L  // 300.0 mA
-#define CURRENT_STOPPED      50L    // Within +/-5.0 mA of zero
+#define CURRENT_STOPPED      50L    // Within +-5.0 mA of zero
 
 /* --------------------------------------------------
 UART A0: sole 3.3 V UART connection to FireBeetle ESP32
 
-Author:
+Author: Julius 
 Version: 3.0.0
 Responsibilities:
 - Configure UART A0 and transmit HELLO, CAL, BASE and DATA messages.
@@ -137,7 +112,7 @@ void ESP_UART_Signed(long n)
 /* --------------------------------------------------
 Function: ESP_UART_SendData
 
-Author:
+Author: Wai Loon
 Version: 3.0.0
 
 Responsibilities:
@@ -211,22 +186,9 @@ void ESP_UART_SendBaseline(uint32_t baseline, uint32_t lower,
 }
 
 /* --------------------------------------------------
-I2C Communication (INA219 and ADXL345)
-
-Author:
-Version: 2.5.0
-Responsibilities:
-- Initialize USCI_B0 for I2C communication on P3.0 and P3.1
-- Write one or more configuration bytes to sensor registers
-- Read sensor registers using a repeated START
-- Check for NACK and timeout to prevent infinite waiting
-- Recover the I2C bus if a previous transaction was interrupted
--------------------------------------------------- */
-
-/* --------------------------------------------------
 Function: I2C_Init
 
-Author:
+Author: Julius
 Version: 2.3.0
 Purpose: Configure MSP430 USCI_B0 as the shared I2C master.
 Parameters: None
@@ -246,7 +208,7 @@ void I2C_Init(void)
 /* --------------------------------------------------
 Function: I2C_RecoverBus
 
-Author:
+Author: Sinclair
 Version: 2.3.0
 Purpose:
 Release a stuck SDA line by generating up to nine clock pulses,
@@ -311,7 +273,7 @@ unsigned char I2C_RecoverBus(void)
 /* --------------------------------------------------
 Function: I2C_WriteRegister
 
-Author:
+Author: Sinclair
 Version: 2.5.0
 Purpose: Write one or more bytes to a sensor register using I2C.
 Parameters:
@@ -378,7 +340,7 @@ fail:
 /* --------------------------------------------------
 Function: I2C_ReadRegister
 
-Author:
+Author: Sinclair
 Version: 2.3.0
 Purpose: Read one or more consecutive bytes from a sensor register.
 Parameters:
@@ -459,20 +421,9 @@ fail:
 }
 
 /* --------------------------------------------------
-INA219 Current Sensor
-
-Author:
-Version: 2.3.0
-Responsibilities:
-- Configure INA219 for internal 128x averaging
-- Read the two-byte shunt-voltage register
-- Calculate fan current using the 0.1 ohm shunt resistor
--------------------------------------------------- */
-
-/* --------------------------------------------------
 Function: INA219_Init
 
-Author:
+Author: Arthur
 Version: 2.5.0
 Purpose: Configure 128x bus/shunt ADC averaging in continuous mode.
 Parameters: None
@@ -492,7 +443,7 @@ unsigned char INA219_Init(void)
 /* --------------------------------------------------
 INA219 - shunt register 0x01
 
-Author:
+Author: Arthur
 Version: 2.1.0
 Responsibilities:
 - Convert the shunt register to tenths of milliamps.
@@ -510,7 +461,7 @@ unsigned char INA219_ReadCurrent(int16_t *current_x10_mA)
 /* --------------------------------------------------
 MCP9700
 
-Author:
+Author: Iaian
 Version: 2.1.0
 Responsibilities:
 - Configure ADC12 A0 on P6.0 and calculate the temperature using the average of 16 sampled reading
@@ -556,8 +507,7 @@ long ReadTemp(void)
 
 /* --------------------------------------------------
 ADXL345
-
-Author:
+Author: Sinclair
 Version: 2.1.0
 Responsibilities:
 - Configure accelerometer, read FIFO and calculate RMS/impact data.: 200 Hz, full-resolution +/-4 g, stream FIFO.
@@ -603,8 +553,8 @@ unsigned char ADXL345_ReadXYZ(int16_t *x, int16_t *y, int16_t *z)
     return 1;
 }
 
-/* Integer square root for 64-bit nonnegative input. */
-uint32_t IntegerSqrt64(uint64_t n)
+/* Integer square root */
+uint32_t IntegerSqrt(uint64_t n)
 {
     uint64_t result = 0;
     uint64_t bit = (uint64_t)1 << 62;
@@ -623,21 +573,49 @@ uint32_t IntegerSqrt64(uint64_t n)
 }
 
 /* --------------------------------------------------
-Function: VarianceDmgSquared
+Function: CalculateVibrationRMS
 
 Purpose:
-Calculate the acceleration variance in squared 0.1 mg units.
-1 ADXL345 count is approximately 3.9 mg (39 x 0.1 mg).
-Keep fractional variance until after unit conversion.
-Parameters: sum - Sum of samples; sumSq - Sum of squared samples.
-Returns: Variance in (0.1 mg)^2.
+Calculate vibration RMS by subtracting the mean
+acceleration from every sample.
 -------------------------------------------------- */
-uint64_t VarianceDmgSquared(int32_t sum, uint32_t sumSq)
+void CalculateVibrationRMS(const int16_t x[], const int16_t y[],
+                           const int16_t z[],
+                           float *xRms, float *yRms,
+                           float *zRms, float *totalRms)
 {
-    uint64_t n = SAMPLES;
-    uint64_t sumSquared = (uint64_t)((int64_t)sum * (int64_t)sum);
-    uint64_t numerator = n * (uint64_t)sumSq - sumSquared;
-    return (numerator * 1521ULL + (n * n) / 2ULL) / (n * n);
+    float meanX = 0, meanY = 0, meanZ = 0;
+    float sumSqX = 0, sumSqY = 0, sumSqZ = 0;
+    float dx, dy, dz;
+    unsigned int i;
+
+    //Calculate mean acceleration
+    for (i = 0; i < SAMPLES; i++) {
+        meanX += x[i];
+        meanY += y[i];
+        meanZ += z[i];
+    }
+
+    meanX /= SAMPLES;
+    meanY /= SAMPLES;
+    meanZ /= SAMPLES;
+
+    //Subtract mean and square differences
+    for (i = 0; i < SAMPLES; i++) {
+        dx = x[i] - meanX;
+        dy = y[i] - meanY;
+        dz = z[i] - meanZ;
+
+        sumSqX += dx * dx;
+        sumSqY += dy * dy;
+        sumSqZ += dz * dz;
+    }
+
+    //Calculate RMS for each axis in mg
+    *xRms = sqrtf(sumSqX / SAMPLES) * 3.9f;
+    *yRms = sqrtf(sumSqY / SAMPLES) * 3.9f;
+    *zRms = sqrtf(sumSqZ / SAMPLES) * 3.9f;
+
 }
 
 /* RMS and impact peak values use 0.1 mg units. */
@@ -695,14 +673,14 @@ unsigned char MeasureVibration(uint32_t *xRms, uint32_t *yRms,
         }
     }
 
-    varX = VarianceDmgSquared(sumX, sqX);
-    varY = VarianceDmgSquared(sumY, sqY);
-    varZ = VarianceDmgSquared(sumZ, sqZ);
+    varX = CalculateVibrationRMS(sumX, sqX);
+    varY = CalculateVibrationRMS(sumY, sqY);
+    varZ = CalculateVibrationRMS(sumZ, sqZ);
 
-    *xRms = IntegerSqrt64(varX);
-    *yRms = IntegerSqrt64(varY);
-    *zRms = IntegerSqrt64(varZ);
-    *totalRms = IntegerSqrt64(varX + varY + varZ);
+    *xRms = IntegerSqrt(varX);
+    *yRms = IntegerSqrt(varY);
+    *zRms = IntegerSqrt(varZ);
+    *totalRms = IntegerSqrt(varX + varY + varZ);
 
     /* Largest single-axis peak-to-peak, used ONLY for impact detection. */
     peakX = (uint32_t)((int32_t)maxX - minX) * 39UL;
@@ -716,7 +694,7 @@ unsigned char MeasureVibration(uint32_t *xRms, uint32_t *yRms,
 
 /* --------------------------------------------------
 Function: StopWithError
-Author:
+Author: Julius
 Version: 2.1.0
 
 Purpose:
@@ -736,17 +714,7 @@ void StopWithError(const char *message)
     while (1) { /* Stop to prevent reporting invalid readings */ }
 }
 
-/* --------------------------------------------------
-Calibration and Sensor Warning Detection
 
-Author:
-Version: 3.0.0
-Responsibilities:
-- Collect 20 healthy vibration, current and temperature readings
-- Calculate the normal operating limits for each sensor
-- Confirm abnormal readings across 3 consecutive windows
-- Detect sudden impacts separately from sustained vibration
--------------------------------------------------- */
 #define WITHIN_BASELINE 0U
 #define ABOVE_CHECKING 1U
 #define ABOVE_NORMAL 2U
@@ -770,7 +738,7 @@ static unsigned int machineCandidate = 0, machineCount = 0;
 
 /* --------------------------------------------------
 Function: Calibration_Run
-Author:
+Author: Sinclair
 Version: 3.0.0
 Responsibilities:
 - Measure the healthy fan and calculate all warning limits
@@ -816,22 +784,16 @@ void Calibration_Run(void)
     baselineCurrent_x10 = currentSum / (long)CAL_WINDOWS;
     baselineTemp_x10 = tempSum / (long)CAL_WINDOWS;
 
-    // Prevent calibration with the fan stopped or current wired backwards.
-    // This is a test-rig check, not a guarantee that the fan is healthy.
+    // Prevent calibration with the fan stopped
     if (baselineCurrent_x10 < 100L)
         StopWithError("Calibration requires positive fan current above 10 mA");
 
-    // Vibration: use the largest of percentage, spread and minimum tolerance
+    // Calculate upper and lower limit
     tolerance = baselineRms * RMS_TOL_PCT / 100UL;
-    spread = maxRms - minRms;
-    if (tolerance < spread * RMS_SPREAD_MULT)
-        tolerance = spread * RMS_SPREAD_MULT;
-    if (tolerance < RMS_TOL_FLOOR)
-        tolerance = RMS_TOL_FLOOR;
     lowerLimit = (baselineRms > tolerance) ? baselineRms - tolerance : 0;
     upperLimit = baselineRms + tolerance;
 
-    // Current: allow +/-10% of average current, or at least 10 mA
+    // Current: allow +-10% of average current, or at least 10 mA
     currentTolerance = baselineCurrent_x10 * CURRENT_TOL_PCT / 100L;
     if (currentTolerance < CURRENT_TOL_MIN)
         currentTolerance = CURRENT_TOL_MIN;
@@ -866,7 +828,7 @@ void Calibration_Run(void)
 
 /* --------------------------------------------------
 Function: Warning_Check
-Author:
+Author: Arthur
 Version: 3.0.0
 Responsibilities:
 - Check individual and combined sensor conditions
@@ -987,7 +949,7 @@ void Warning_Check(int16_t current_x10, long temperature_x10,
 /* --------------------------------------------------
 Timer_A0 and S1 Recalibration Button
 
-Author:
+Author: Julius
 Version: 2.4.0
 Responsibilities:
 - Use Timer_A0 to count 50 ms intervals using ACLK
@@ -1006,7 +968,7 @@ volatile unsigned int monitorTicks = 0;         // Number of elapsed 50 ms ticks
 /* --------------------------------------------------
 Function: Timer_Init
 
-Author:
+Author: Iaian
 Version: 2.4.0
 Purpose: Configure Timer_A0 to interrupt approximately every 50 ms.
 Parameters: None
@@ -1023,7 +985,7 @@ void Timer_Init(void)
 /* --------------------------------------------------
 Function: Button_Init
 
-Author:
+Author: Iaian
 Version: 2.4.0
 Purpose: Configure the LaunchPad's built-in S1 (P2.1) as a button interrupt.
 Parameters: None
@@ -1043,7 +1005,7 @@ void Button_Init(void)
 /* --------------------------------------------------
 Function: Timer_CheckButton
 
-Author:
+Author: Iaian
 Version: 2.4.0
 Purpose: Debounce S1 and wait for its release before accepting a new press.
 Parameters: None
@@ -1077,7 +1039,7 @@ void Timer_CheckButton(void)
 /* --------------------------------------------------
 ISR: Port2_ISR
 
-Author:
+Author: Julius
 Version: 2.4.0
 Purpose: Detect the built-in S1 button and start its debounce check.
 -------------------------------------------------- */
@@ -1095,7 +1057,7 @@ __interrupt void Port2_ISR(void)
 /* --------------------------------------------------
 ISR: Timer_A0_ISR
 
-Author:
+Author: Julius
 Version: 2.4.0
 Purpose: Schedule sensor updates and check button debounce every 50 ms.
 -------------------------------------------------- */
@@ -1117,12 +1079,11 @@ __interrupt void Timer_A0_ISR(void)
 
 /* --------------------------------------------------
 Main Program
-
-Author:
+Author: Everyone
 Version: 2.2.0
 
 Responsibilities:
-- Initialize shared MSP430 peripherals and sensors.
+-Initialize shared MSP430 peripherals and sensors.
 - Recover I2C bus when required.
 - Run healthy-state calibration.
 - Acquire measurements and evaluate warnings.
